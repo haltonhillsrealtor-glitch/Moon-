@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Where’s the Moon?</title>
+<style>
+  :root { --bg:#0b0f17; --card:#151a24; --fg:#e8e8ef; --muted:#aeb3c2; }
+  html,body { height:100%; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; display:grid; place-items:center; min-height:100dvh; background:var(--bg); color:var(--fg) }
+  .card { max-width:680px; width:min(92vw,680px); padding:28px; border-radius:18px; background:var(--card); box-shadow:0 10px 30px rgba(0,0,0,.35); text-align:center }
+  h1 { margin:0 0 10px; font-size:28px; letter-spacing:.2px }
+  .big { font-size:40px; margin:16px 0 6px; line-height:1.2 }
+  .sub { opacity:.8; font-size:14px; margin-bottom:14px; color:var(--muted) }
+  button { font-size:18px; padding:14px 18px; border-radius:12px; border:0; cursor:pointer; background:#f0f2f8; }
+  button:active { transform: translateY(1px); }
+  footer { opacity:.8; font-size:12px; margin-top:14px; color:var(--muted) }
+  .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+</style>
+<div class="card">
+  <h1>Where’s the Moon?</h1>
+  <div id="out" class="big">—</div>
+  <div id="sub" class="sub"></div>
+  <div class="row">
+    <button id="btn">Tell me</button>
+    <button id="copy">Copy</button>
+    <button id="speak">Speak</button>
+  </div>
+  <footer>Tap “Add to Home Screen” in your browser to use this like an app.</footer>
+</div>
+
+<!-- Astronomy Engine (accurate ephemeris in the browser) -->
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.2.0/astronomy.min.js"></script>
+<script>
+  function toZodiac(lon) {
+    const signs = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+    lon = ((lon % 360) + 360) % 360;
+    const signIndex = Math.floor(lon / 30);
+    const deg = lon - signIndex * 30;
+    const d = Math.round(deg * 10) / 10;
+    return { sign: signs[signIndex], deg: d };
+  }
+
+  async function whereIsTheMoon() {
+    const now = new Date();
+    const eq = Astronomy.Equator("Moon", now, null, true, true);
+    const ecl = Astronomy.Ecliptic(eq);
+    const { sign, deg } = toZodiac(ecl.elon);
+    const text = `Moon is at ${deg.toFixed(1)}° ${sign}`;
+    document.getElementById("out").textContent = text;
+    document.getElementById("sub").textContent = now.toLocaleString();
+    return text;
+  }
+
+  async function speak(text) {
+    if (!("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    speechSynthesis.cancel(); 
+    speechSynthesis.speak(u);
+  }
+
+  document.getElementById("btn").addEventListener("click", async () => {
+    const text = await whereIsTheMoon();
+  });
+
+  document.getElementById("copy").addEventListener("click", async () => {
+    const text = document.getElementById("out").textContent || await whereIsTheMoon();
+    try { await navigator.clipboard.writeText(text); alert("Copied: " + text); } 
+    catch(e){ alert("Copy failed. Long‑press to select text."); }
+  });
+
+  document.getElementById("speak").addEventListener("click", async () => {
+    const text = document.getElementById("out").textContent || await whereIsTheMoon();
+    speak(text);
+  });
+
+  // Auto-run on open
+  whereIsTheMoon();
+</script>
+</html>
